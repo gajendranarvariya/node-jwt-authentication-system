@@ -2,6 +2,8 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
 import userModel from "../models/user.model.js";
+import sessionModel from "../models/session.model.js"
+
 import config from "../config/config.js";
 
 
@@ -52,6 +54,7 @@ export const login = async (req, res)=>{
 		return res.status(401).json({message:"Invalid Email or Password"});
 	}
 
+
 	const hashedPassword = crypto.createHash("sha256").update(password).digest("hex");
 
 	const isPasswordValid = hashedPassword === user.password;
@@ -60,8 +63,29 @@ export const login = async (req, res)=>{
 		return res.status(401).json({message:"Invalid Email or Password"});
 	}
 
+	// Generate Refresh Token
+	const refreshToken = jwt.sign({id:user._id},config.JWT_SECRET_KEY,{expiresIn:"7d"});
 
-	const token = jwt.sign({id:user._id},config.JWT_SECRET_KEY,{expiresIn:"1d"});
+	// Create session
+	const refreshTokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+	const session = await sessionModel.create({
+		user: user._id,
+		refreshTokenHash,
+		ip:req.ip,
+		userAgent:req.headers['user-agent']
+	});
+
+
+	// Generate Access Token
+	const accessToken = await jwt.sign({id:user._id,sessionId:session._id},config.JWT_SECRET_KEY,{expiresIn:"15m"});
+
+
+	res.cookie("refershToken", refreshToken, {
+		httpOnly: true,
+		secure: true,
+		sameSite: "strict",
+		maxAge: 7 * 24 * 60 * 60
+	});
 
 	return res.status(200).json({
 		message: "User Logged In Successfully",
@@ -69,8 +93,9 @@ export const login = async (req, res)=>{
 			username:user.username,
 			email:user.email
 		},
-		token
+		accessToken
 	})
+
 
 }
 
