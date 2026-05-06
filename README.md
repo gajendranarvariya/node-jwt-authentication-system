@@ -1,6 +1,13 @@
 # Node JWT Authentication System
 
-A complete authentication system built using Node.js and JSON Web Tokens (JWT), implementing secure and scalable user authentication workflows.
+   A complete authentication system built using Node.js and JSON Web Tokens (JWT), implementing secure and scalable user authentication workflows.
+
+   Developed a robust and secure authentication system using Node.js and JWT (JSON Web Tokens). This project focuses on implementing industry-standard authentication mechanisms, including access and refresh tokens, email verification, and OTP-based user validation.
+
+   Key highlights include token blacklisting, session management, and enforcing single-device login for enhanced security. The system is designed with scalable schemas for users, tokens, sessions, and OTP verification, ensuring maintainability and performance.
+
+   This project demonstrates strong backend development skills, security best practices, and real-world authentication workflow implementation.
+
 
 ## 🚀 Features
 
