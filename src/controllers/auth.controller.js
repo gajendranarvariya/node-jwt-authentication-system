@@ -137,3 +137,31 @@ export const getMe = async (req, res)=>{
 	}
 
 }
+
+
+// create logout endpoint
+export const logout = async (req, res)=>{
+	
+	const refreshToken = req.cookies.refershToken;
+
+	if(!refreshToken){
+		return res.status(400).json({message:"Refresh Token not Found"});
+	}
+
+	const refreshTokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+
+	const session = await sessionModel.findOne({refreshTokenHash,revoked:false});
+
+	if (!session) {
+		return res.status(400).json({message:"Invalid Refresh Token"})
+	}
+
+	session.revoked = true;
+	await session.save();
+
+	res.clearCookie("refershToken");
+
+	return res.status(200).json({message:"Logged Out Successfully"});
+
+
+}
