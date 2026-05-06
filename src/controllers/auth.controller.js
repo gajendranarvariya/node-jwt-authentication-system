@@ -1,18 +1,21 @@
+
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
+import nodemailer from "nodemailer"; 
 
 import userModel from "../models/user.model.js";
 import sessionModel from "../models/session.model.js"
+import optModel from "../models/otp.model.js"
 
 import config from "../config/config.js";
-
+import { sendEmail } from "../services/email.service.js"
+import {generateOtp, getOtpHtml} from "../utils/otpgenerate.utils.js";
 
 
 export const register = async (req, res)=>{
 
 	const { username, email, password } = req.body;
 
-	// Check user already exist or not
 	const isAlreadyRegistered = await userModel.findOne({
 		$or:[
 			{username},
@@ -24,8 +27,8 @@ export const register = async (req, res)=>{
 		return res.status(409).json({message:"Username or Email already exists!!"})
 	}
 
+
 	const hashedPassword = crypto.createHash("sha256").update(password).digest("hex");
-	// console.log(hashedPassword);
 
 	const user = await userModel.create({
 		username,
@@ -33,15 +36,30 @@ export const register = async (req, res)=>{
 		password: hashedPassword
 	});
 
+	const otp = generateOtp(); // generate otp
+	const html = getOtpHtml(otp);
+
+	// save otp in database with hash formate, so create otp in hash formate
+	const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+	await optModel.create({
+		email,
+		user:user._id,
+		otpHash
+	});
+
+
+	await sendEmail(email, "OTP Verification",`Your OTP code is ${otp}`, html)
+
 	return res.status(201).json({
 		message: "User Create Successfully",
 		user:{
 			username:user.username,
 			email:user.email,
+			verified: user.verified
 		}
 	});
-
 }
+
 
 export const login = async (req, res)=>{
 	
@@ -54,6 +72,9 @@ export const login = async (req, res)=>{
 		return res.status(401).json({message:"Invalid Email or Password"});
 	}
 
+	if (!user.verified) {
+		return res.status(401).json({message:"Email not verified"});
+	}
 
 	const hashedPassword = crypto.createHash("sha256").update(password).digest("hex");
 
@@ -62,6 +83,7 @@ export const login = async (req, res)=>{
 	if (!isPasswordValid) {
 		return res.status(401).json({message:"Invalid Email or Password"});
 	}
+
 
 	// Generate Refresh Token
 	const refreshToken = jwt.sign({id:user._id},config.JWT_SECRET_KEY,{expiresIn:"7d"});
@@ -101,7 +123,6 @@ export const login = async (req, res)=>{
 
 
 
-// Get me all user data
 export const getMe = async (req, res)=>{
 
 	const token = req.headers.authorization?.split(" ")[1];
@@ -144,7 +165,7 @@ export const refreshToken = async (req, res)=>{
 
 	const refreshToken = req.cookies.refreshToken;
 
-	// console.log(refreshToken);
+	console.log(refreshToken);
 
 	if(!refreshToken){
 		return res.status(401).json({
@@ -155,6 +176,7 @@ export const refreshToken = async (req, res)=>{
 	const decoded = jwt.verify(refreshToken,config.JWT_SECRET_KEY);
 
 	const refreshTokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+
 
 	const session = await sessionModel.findOne({refreshTokenHash,revoked:false});
 
@@ -188,7 +210,7 @@ export const refreshToken = async (req, res)=>{
 }
 
 
-// create logout endpoint
+
 export const logout = async (req, res)=>{
 	
 	const refreshToken = req.cookies.refershToken;
@@ -216,7 +238,6 @@ export const logout = async (req, res)=>{
 }
 
 
-
 export const logoutAll = async (req, res)=>{
 
 	const refreshToken = req.cookies.refreshToken;
@@ -240,5 +261,35 @@ export const logoutAll = async (req, res)=>{
 
 	return res.status(200).json({message:"Logged out from all devices Successfully"}); 
 
+
+}
+
+
+// verify otp function
+
+export const verifyEmail = async (req, res)=>{
+
+	const {otp, email} = req.body;
+
+	const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+
+	const optRecord = await optModel.findOne({email,otpHash});
+
+	if (!optRecord) {
+		return res.status(400).json({message:"Invalid OTP"});
+	}
+
+	const user = await userModel.findByIdAndUpdate(optRecord.user,{verified:true});
+
+	await optModel.deleteMany({user:optRecord.user});
+
+	return res.status(200).json({
+		message:"Email verified Successfully",
+		user:{
+			username: user.username,
+			email:user.email,
+			verified: user.verified
+		}
+	});
 
 }

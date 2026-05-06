@@ -29,13 +29,3 @@ const mongooseSchema = new mongoose.Schema({
 const sessionModel = mongoose.model("session",mongooseSchema);
 
 export default sessionModel;
-
-/*{
-		userid
-		refershTokenHash
-		ip
-		userAgent
-		createdAt
-		updatedAt
-		revoke:false // ye 'true' ho gya to yaha par ye jo bhi refresh token rehta h -> iska use ap phir se nhi kar sakte h access token genrate karne ke liye -> or user par acces token nhi rhega to vo server par koi request nhi bhej payega
-}*/
