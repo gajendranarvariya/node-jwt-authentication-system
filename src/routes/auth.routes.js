@@ -20,6 +20,18 @@ authRouter.post("/login", authController.login);
 */
 authRouter.get("/get-me", authController.getMe);
 
+/**
+ * GET - /api/auth/refersh-token
+*/
+authRouter.get("/refersh-token", authController.refreshToken);
+
+
+/**
+ * GET - /api/auth/logout
+*/
+authRouter.get("/logout", authController.logout);
+
+
 
 
 export default authRouter;

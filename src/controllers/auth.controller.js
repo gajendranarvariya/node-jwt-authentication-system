@@ -139,6 +139,55 @@ export const getMe = async (req, res)=>{
 }
 
 
+// Refresh and Access Token - kese use karte h 
+export const refreshToken = async (req, res)=>{
+
+	const refreshToken = req.cookies.refreshToken;
+
+	// console.log(refreshToken);
+
+	if(!refreshToken){
+		return res.status(401).json({
+			message:"Refresh token not found"
+		});
+	}
+
+	const decoded = jwt.verify(refreshToken,config.JWT_SECRET_KEY);
+
+	const refreshTokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+
+	const session = await sessionModel.findOne({refreshTokenHash,revoked:false});
+
+	if (!session) {
+		return res.status(400).json({message:"Invalid refresh token"});
+	}
+
+	const accessToken = jwt.sign({id:decoded.id},config.JWT_SECRET_KEY,{expiresIn:"15m"});
+
+
+	// ab hum newRefershToken bhi generate karge -> kyoki agar 7 dino ke bich me koi mera refreshToken ko copy kar le to bhi problem ho sakti hi to is problem se bach ne ke liye hum ise use karege
+	const newRefreshToken = jwt.sign({id:decoded.id},config.JWT_SECRET_KEY,{expiresIn:"7d"});
+
+
+	const newRefreshTokenHash = crypto.createHash("sha256").update(newRefreshToken).digest("hex");
+	session.refreshTokenHash = newRefreshTokenHash;
+	await session.save();
+
+	res.cookie("refershToken", newRefreshToken, {
+		httpOnly: true,
+		secure: true,
+		sameSite: "strict",
+		maxAge: 7 * 24 * 60 * 60
+	});
+
+	return res.status(200).json({
+		message:"Access Token Refershed Successfully",
+		accessToken
+	});
+
+}
+
+
 // create logout endpoint
 export const logout = async (req, res)=>{
 	
