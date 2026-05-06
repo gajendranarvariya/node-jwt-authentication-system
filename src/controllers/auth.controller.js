@@ -72,5 +72,43 @@ export const login = async (req, res)=>{
 		token
 	})
 
+}
+
+
+
+// Get me all user data
+export const getMe = async (req, res)=>{
+
+	const token = req.headers.authorization?.split(" ")[1];
+	
+	if(!token){
+		return res.status(401).json({message:"Token not provided"});
+	}
+
+	try {
+
+		const decoded = jwt.verify(token,config.JWT_SECRET_KEY);
+		// console.log(decoded);
+
+		const user = await userModel.findById(decoded.id);
+		return res.status(200).json({
+			message:"user fetched Successfully",
+			user:{
+				username:user.username,
+				email:user.email
+			},
+			token
+		});
+
+	} catch(e) {
+		if(e.name==="TokenExpiredError")
+		{
+			console.log("Token Expired");
+			return res.status(401).json({
+				error:"token_expired",
+				message:"JWT Token has expired. Please refresh your token",
+			});
+		}
+	}
 
 }
