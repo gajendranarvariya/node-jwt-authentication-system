@@ -1,5 +1,9 @@
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
+
 import userModel from "../models/user.model.js";
+import config from "../config/config.js";
+
 
 
 export const register = async (req, res)=>{
@@ -34,6 +38,39 @@ export const register = async (req, res)=>{
 			email:user.email,
 		}
 	});
+
+}
+
+export const login = async (req, res)=>{
+	
+	const {email, password} = req.body;
+
+	const user = await userModel.findOne({email});
+
+
+	if (!user) {
+		return res.status(401).json({message:"Invalid Email or Password"});
+	}
+
+	const hashedPassword = crypto.createHash("sha256").update(password).digest("hex");
+
+	const isPasswordValid = hashedPassword === user.password;
+
+	if (!isPasswordValid) {
+		return res.status(401).json({message:"Invalid Email or Password"});
+	}
+
+
+	const token = jwt.sign({id:user._id},config.JWT_SECRET_KEY,{expiresIn:"1d"});
+
+	return res.status(200).json({
+		message: "User Logged In Successfully",
+		user:{
+			username:user.username,
+			email:user.email
+		},
+		token
+	})
 
 
 }
